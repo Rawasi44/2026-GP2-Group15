@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}My Calendar | AFAQ{% endblock %}
+
+{% block extra_styles %}
+<style>
+  .activity-hero {
+    position: relative;
+    background: var(--ink);
+    padding: 64px 0 52px;
+    overflow: hidden;
+  }
+
+  .activity-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("{{ url_for('static', filename='images/texture-grid.svg') }}");
+    background-repeat: repeat;
+    background-size: 64px 64px;
+  }
+
+  .activity-hero-inner {
+    position: relative;
+  }
+
+  .activity-hero h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1.1;
+    letter-spacing: -1px;
+    color: var(--text-on-ink);
+    margin: 16px 0 10px;
+    font-weight: 800;
+  }
+
+  .activity-hero p {
+    max-width: 560px;
+    color: var(--text-on-ink-soft);
+    font-size: 1rem;
+    line-height: 1.8;
+  }
+
+  .activity-empty {
+    text-align: center;
+    margin-top: 10px;
+    padding: 60px 40px;
+    color: var(--text-soft);
+    font-size: 1.05rem;
+    background: var(--card);
+    border-radius: var(--radius-xl);
+  }
+
+  .activity-empty a {
+    color: var(--accent-dark);
+    font-weight: 700;
+  }
+
+  .calendar-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .calendar-row {
+    display: grid;
+    grid-template-columns: 120px 1fr auto;
+    align-items: center;
+    gap: 20px;
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: 14px;
+  }
+
+  .calendar-row-img {
+    width: 120px;
+    height: 90px;
+    border-radius: var(--radius-md);
+    object-fit: cover;
+    background: var(--paper-dim);
+    display: block;
+  }
+
+  .calendar-row-body h3 {
+    font-family: var(--font-display);
+    font-size: 1.08rem;
+    color: var(--text-main);
+    margin-bottom: 6px;
+  }
+
+  .calendar-row-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    font-size: 0.86rem;
+    color: var(--text-soft);
+  }
+
+  .calendar-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .calendar-remove-btn {
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--danger-border);
+    background: transparent;
+    color: var(--danger);
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 0.86rem;
+    cursor: pointer;
+    transition: 0.18s ease;
+  }
+
+  .calendar-remove-btn:hover {
+    background: var(--danger-bg);
+  }
+
+  @media (max-width: 700px) {
+    .calendar-row {
+      grid-template-columns: 1fr;
+    }
+
+    .calendar-row-img {
+      width: 100%;
+      height: 160px;
+    }
+
+    .calendar-row-actions {
+      justify-content: flex-start;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="activity-hero">
+  <div class="page-shell activity-hero-inner">
+    <span class="eyebrow-label on-ink">My AFAQ</span>
+    <h1>Your personal calendar</h1>
+    <p>Events you're planning to attend, all in one place.</p>
+  </div>
+</section>
+
+<section class="section" style="padding-top: 44px;">
+  <div class="page-shell">
+    {% if entries %}
+      <div class="calendar-list">
+        {% for entry in entries %}
+          {% set event = entry.event %}
+          <div class="calendar-row">
+            {% if event.image %}
+              <img class="calendar-row-img" src="{{ event.image }}" alt="{{ event.title }}">
+            {% else %}
+              <img class="calendar-row-img" src="https://via.placeholder.com/200x150?text=Event" alt="Event Image">
+            {% endif %}
+
+            <div class="calendar-row-body">
+              <h3>{{ event.title }}</h3>
+              <div class="calendar-row-meta">
+                <span>{{ event.start_date }}{% if event.end_date %} &ndash; {{ event.end_date }}{% endif %}</span>
+                {% if event.time %}<span>{{ event.time }}</span>{% endif %}
+                <span>{{ event.location if event.location else event.city }}</span>
+              </div>
+            </div>
+
+            <div class="calendar-row-actions">
+              <a href="{{ url_for('events.event_details', event_id=event.id) }}" class="outline-btn">View details</a>
+              <form method="POST" action="{{ url_for('calendar.toggle_calendar', event_id=event.id) }}">
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <button type="submit" class="calendar-remove-btn">Remove</button>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="activity-empty">
+        Your calendar is empty. <a href="{{ url_for('events.events_page') }}">Browse events</a> and add ones you plan to attend.
+      </p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

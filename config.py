@@ -13,5 +13,5 @@ class Config:
     MAIL_USE_TLS = True
     MAIL_USE_SSL = False
     MAIL_USERNAME = "afaq.riyadhevents@gmail.com"
-    MAIL_PASSWORD = ""
+    MAIL_PASSWORD = "xzmn mtka dwge cvow"
     MAIL_DEFAULT_SENDER = "afaq.riyadhevents@gmail.com"

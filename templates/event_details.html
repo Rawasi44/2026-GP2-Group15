@@ -55,12 +55,39 @@
           </button>
         </form>
 
+        {% if is_in_calendar %}
         <form method="POST" action="{{ url_for('calendar.toggle_calendar', event_id=event.id) }}">
           <input type="hidden" name="next" value="{{ request.path }}">
-          <button type="submit" class="outline-btn {{ 'is-active' if is_in_calendar else '' }}">
-            {{ '\u2713 In Calendar' if is_in_calendar else '+ Add to Calendar' }}
+          <button type="submit" class="outline-btn is-active">
+            ✓ In Calendar — Remove
           </button>
         </form>
+        {% else %}
+        <form method="POST"
+              action="{{ url_for('calendar.toggle_calendar', event_id=event.id) }}"
+              class="calendar-add-form">
+          <input type="hidden" name="next" value="{{ request.path }}">
+
+          <div class="calendar-date-wrap">
+            <label for="scheduled-date-{{ event.id }}">Choose attendance date</label>
+            <input
+              id="scheduled-date-{{ event.id }}"
+              type="date"
+              name="scheduled_date"
+              class="calendar-date-input"
+              min="{{ event.start_date.isoformat() }}"
+              max="{{ (event.end_date or event.start_date).isoformat() }}"
+              data-start-date="{{ event.start_date.isoformat() }}"
+              data-end-date="{{ (event.end_date or event.start_date).isoformat() }}"
+              required
+            >
+          </div>
+
+          <button type="submit" class="outline-btn">
+            + Add to Calendar
+          </button>
+        </form>
+        {% endif %}
       </div>
     </div>
 
@@ -313,6 +340,43 @@
 
   .details-actions form {
     margin: 0;
+  }
+
+  .calendar-add-form {
+    display: flex;
+    align-items: end;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .calendar-date-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .calendar-date-wrap label {
+    color: var(--text-soft);
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  .calendar-date-input {
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--card);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    outline: none;
+    transition: 0.18s ease;
+  }
+
+  .calendar-date-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
   }
 
   .details-actions .outline-btn {
@@ -571,10 +635,48 @@
     .review-date {
       margin-left: 50px;
     }
+
+    .calendar-add-form {
+      width: 100%;
+      align-items: stretch;
+    }
+
+    .calendar-date-wrap {
+      width: 100%;
+    }
+
+    .calendar-date-input {
+      width: 100%;
+    }
+
+    .calendar-add-form .outline-btn {
+      width: 100%;
+    }
   }
 </style>
 
 <script>
+  (function () {
+    document.querySelectorAll('.calendar-date-input').forEach(function (input) {
+      var startDate = input.getAttribute('data-start-date');
+      var endDate = input.getAttribute('data-end-date') || startDate;
+
+      if (!startDate) return;
+
+      var now = new Date();
+      var yyyy = now.getFullYear();
+      var mm = String(now.getMonth() + 1).padStart(2, '0');
+      var dd = String(now.getDate()).padStart(2, '0');
+      var today = yyyy + '-' + mm + '-' + dd;
+
+      if (today >= startDate && today <= endDate) {
+        input.value = today;
+      } else {
+        input.value = startDate;
+      }
+    });
+  })();
+
   (function () {
     function parseTimeString(str) {
       if (!str) return { hours: 0, minutes: 0 };

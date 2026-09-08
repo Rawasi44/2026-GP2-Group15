@@ -344,7 +344,6 @@
           {% if current_user.is_authenticated %}
             <a href="{{ url_for('favorites.favorites_page') }}">Favorites</a>
             <a href="{{ url_for('calendar.calendar_page') }}">Calendar</a>
-            <a href="{{ url_for('recently_viewed.recently_viewed_page') }}">Recently Viewed</a>
           {% endif %}
           <a href="#about">About</a>
           <a href="#contact">Contact</a>

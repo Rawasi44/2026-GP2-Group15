@@ -17,7 +17,7 @@ calendar_bp = Blueprint("calendar", __name__)
 def calendar_page():
     today = date.today()
 
-    # Get the requested month/year from the URL.
+    # Show the requested month/year.
     # If none are provided, show the current month.
     try:
         year = int(request.args.get("year", today.year))
@@ -49,31 +49,35 @@ def calendar_page():
     first_day = date(year, month, 1)
     next_month_first_day = date(next_year, next_month, 1)
 
-    # Historical CalendarEvent rows remain in the database if an event
-    # is soft-deleted. Inactive events are simply hidden from the
-    # user-facing calendar.
-    events = (
-        Event.query
-        .join(CalendarEvent, CalendarEvent.event_id == Event.id)
+    # Get the user's planned events for the selected month.
+    # The calendar now uses CalendarEvent.scheduled_date instead of
+    # Event.start_date, because the user chooses the date they plan
+    # to attend the event.
+    entries = (
+        CalendarEvent.query
+        .filter(CalendarEvent.user_id == current_user.user_id)
+        .join(Event, CalendarEvent.event_id == Event.id)
         .filter(
-            CalendarEvent.user_id == current_user.user_id,
             Event.is_active == True,
-            Event.start_date >= first_day,
-            Event.start_date < next_month_first_day
+            CalendarEvent.scheduled_date >= first_day,
+            CalendarEvent.scheduled_date < next_month_first_day
         )
         .order_by(
-            Event.start_date.asc(),
+            CalendarEvent.scheduled_date.asc(),
             Event.time.asc(),
             Event.title.asc()
         )
         .all()
     )
 
-    # Group calendar events by their actual event start date.
+    # Group events by the date selected by the user.
     events_by_date = {}
 
-    for event in events:
-        events_by_date.setdefault(event.start_date, []).append(event)
+    for entry in entries:
+        events_by_date.setdefault(
+            entry.scheduled_date,
+            []
+        ).append(entry.event)
 
     # Build a Sunday-to-Saturday monthly calendar grid.
     calendar_builder = pycalendar.Calendar(firstweekday=6)
@@ -118,6 +122,15 @@ def toggle_calendar(event_id):
         event_id=event_id
     ).first()
 
+    next_url = (
+        request.form.get("next")
+        or url_for(
+            "events.event_details",
+            event_id=event_id
+        )
+    )
+
+    # If already in the calendar, remove it.
     if existing:
         db.session.delete(existing)
         db.session.commit()
@@ -127,46 +140,69 @@ def toggle_calendar(event_id):
             "success"
         )
 
-        next_url = (
-            request.form.get("next")
-            or url_for(
-                "events.event_details",
-                event_id=event_id
-            )
-        )
+        return redirect(next_url)
 
-    elif not event.is_active:
+    # Do not allow adding inactive events.
+    if not event.is_active:
         flash(
             "This event is no longer available and can't be added to your calendar.",
             "warning"
         )
 
-        next_url = (
+        return redirect(
             request.form.get("next")
             or url_for("events.events_page")
         )
 
-    else:
-        db.session.add(
-            CalendarEvent(
-                user_id=current_user.user_id,
-                event_id=event_id
-            )
-        )
+    # Read the date selected by the user.
+    scheduled_date_value = request.form.get(
+        "scheduled_date",
+        ""
+    ).strip()
 
-        db.session.commit()
-
+    if not scheduled_date_value:
         flash(
-            "Added to your personal calendar.",
-            "success"
+            "Please choose the date you plan to attend this event.",
+            "warning"
         )
+        return redirect(next_url)
 
-        next_url = (
-            request.form.get("next")
-            or url_for(
-                "events.event_details",
-                event_id=event_id
-            )
+    try:
+        scheduled_date = date.fromisoformat(
+            scheduled_date_value
         )
+    except ValueError:
+        flash(
+            "Please choose a valid date.",
+            "danger"
+        )
+        return redirect(next_url)
+
+    # The selected attendance date must fall within
+    # the event's available date range.
+    event_start = event.start_date
+    event_end = event.end_date or event.start_date
+
+    if scheduled_date < event_start or scheduled_date > event_end:
+        flash(
+            "The selected date must be within the event's available dates.",
+            "warning"
+        )
+        return redirect(next_url)
+
+    # Add the event using the user's selected attendance date.
+    new_calendar_entry = CalendarEvent(
+        user_id=current_user.user_id,
+        event_id=event_id,
+        scheduled_date=scheduled_date
+    )
+
+    db.session.add(new_calendar_entry)
+    db.session.commit()
+
+    flash(
+        "Added to your personal calendar.",
+        "success"
+    )
 
     return redirect(next_url)
